@@ -26,28 +26,43 @@
 
   <!-- Google Analytics 4 -->
   <script>
-    // Load gtag.js asynchronously
+    // Load gtag.js — wait for it to load before redirecting
     var s = document.createElement('script');
     s.async = true;
     s.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA_MEASUREMENT_ID;
-    document.head.appendChild(s);
 
     window.dataLayer = window.dataLayer || [];
     function gtag(){ dataLayer.push(arguments); }
     gtag('js', new Date());
-    gtag('config', GA_MEASUREMENT_ID, { send_page_view: true });
 
-    // Send the page_view event, then redirect after a brief delay
-    // (the delay ensures GA has time to fire the beacon)
-    gtag('event', 'qr_scan', {
-      event_category: 'flyer',
-      event_label: 'bws_qr_redirect'
-    });
-
-    // Redirect after 800ms (enough for GA beacon to fire)
-    setTimeout(function() {
+    function doRedirect() {
       window.location.replace(DESTINATION_URL);
-    }, 800);
+    }
+
+    s.onload = function() {
+      // gtag.js is now loaded — configure + fire events
+      gtag('config', GA_MEASUREMENT_ID, {
+        send_page_view: true,
+        transport_type: 'beacon'  // uses navigator.sendBeacon — survives page unload
+      });
+      gtag('event', 'qr_scan', {
+        event_category: 'flyer',
+        event_label: 'bws_qr_redirect',
+        transport_type: 'beacon'
+      });
+      // Give GA 500ms after load to flush the beacon, then redirect
+      setTimeout(doRedirect, 500);
+    };
+
+    s.onerror = function() {
+      // If gtag.js fails to load (ad blocker etc.), redirect anyway
+      doRedirect();
+    };
+
+    document.head.appendChild(s);
+
+    // Safety net: redirect after 3s no matter what (user shouldn't wait forever)
+    setTimeout(doRedirect, 3000);
   </script>
 
   <!-- Fallback redirect if JS is disabled (instant, no tracking) -->
